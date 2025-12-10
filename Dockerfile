@@ -19,12 +19,7 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Create installation directory
-RUN mkdir -p /opt/java
-
-# Detect architecture and set variables
-RUN ARCH=$(dpkg --print-architecture) && \
-    echo "Detected architecture: ${ARCH}" && \
-    echo "ARCH=${ARCH}" > /tmp/arch.env
+RUN mkdir -p /opt/java /opt/ecj
 
 # Layer 1: Java 8
 FROM base as java8
@@ -94,29 +89,74 @@ RUN ARCH=$(dpkg --print-architecture) && \
     mv /opt/java/jdk-21.0.5+11 /opt/java/jdk21 && \
     rm /tmp/jdk21.tar.gz
 
-# Layer 5: ECJ (Eclipse Compiler for Java)
+# Layer 5: ECJ (Eclipse Compiler for Java) - From Eclipse Official Archive
 FROM java21 as final
-RUN mkdir -p /opt/ecj && \
+RUN cd /opt/ecj && \
     wget --timeout=30 --tries=3 \
-    https://repo1.maven.org/maven2/org/eclipse/jdt/ecj/3.38.0/ecj-3.38.0.jar \
-    -O /opt/ecj/ecj-3.38.0.jar && \
+    https://archive.eclipse.org/eclipse/downloads/drops/R-3.3.2-200802211800/ecj.jar \
+    -O ecj-3.3.2.jar || true && \
     wget --timeout=30 --tries=3 \
-    https://repo1.maven.org/maven2/org/eclipse/jdt/ecj/3.30.0/ecj-3.30.0.jar \
-    -O /opt/ecj/ecj-3.30.0.jar && \
+    https://archive.eclipse.org/eclipse/downloads/drops4/R-4.6.3-201703010400/ecj-4.6.3.jar \
+    -O ecj-4.6.3.jar || true && \
     wget --timeout=30 --tries=3 \
-    https://repo1.maven.org/maven2/org/eclipse/jdt/ecj/3.26.0/ecj-3.26.0.jar \
-    -O /opt/ecj/ecj-3.26.0.jar && \
+    https://archive.eclipse.org/eclipse/downloads/drops4/R-4.7.3a-201803300640/ecj-4.7.3a.jar \
+    -O ecj-4.7.3.jar || true && \
     wget --timeout=30 --tries=3 \
-    https://repo1.maven.org/maven2/org/eclipse/jdt/ecj/3.20.0/ecj-3.20.0.jar \
-    -O /opt/ecj/ecj-3.20.0.jar
+    https://archive.eclipse.org/eclipse/downloads/drops4/R-4.8-201806110500/ecj-4.8.jar \
+    -O ecj-4.8.jar || true && \
+    wget --timeout=30 --tries=3 \
+    https://archive.eclipse.org/eclipse/downloads/drops4/R-4.9-201809060745/ecj-4.9.jar \
+    -O ecj-4.9.jar || true && \
+    wget --timeout=30 --tries=3 \
+    https://archive.eclipse.org/eclipse/downloads/drops4/R-4.12-201906051800/ecj-4.12.jar \
+    -O ecj-4.12.jar || true && \
+    wget --timeout=30 --tries=3 \
+    https://archive.eclipse.org/eclipse/downloads/drops4/R-4.14-201912100610/ecj-4.14.jar \
+    -O ecj-4.14.jar || true && \
+    wget --timeout=30 --tries=3 \
+    https://archive.eclipse.org/eclipse/downloads/drops4/R-4.16-202006040540/ecj-4.16.jar \
+    -O ecj-4.16.jar || true && \
+    wget --timeout=30 --tries=3 \
+    https://archive.eclipse.org/eclipse/downloads/drops4/R-4.19-202103031800/ecj-4.19.jar \
+    -O ecj-4.19.jar || true && \
+    wget --timeout=30 --tries=3 \
+    https://archive.eclipse.org/eclipse/downloads/drops4/R-4.20-202106111600/ecj-4.20.jar \
+    -O ecj-4.20.jar || true && \
+    wget --timeout=30 --tries=3 \
+    https://archive.eclipse.org/eclipse/downloads/drops4/R-4.21-202109060500/ecj-4.21.jar \
+    -O ecj-4.21.jar || true && \
+    wget --timeout=30 --tries=3 \
+    https://archive.eclipse.org/eclipse/downloads/drops4/R-4.24-202206070700/ecj-4.24.jar \
+    -O ecj-4.24.jar || true && \
+    wget --timeout=30 --tries=3 \
+    https://archive.eclipse.org/eclipse/downloads/drops4/R-4.25-202209161000/ecj-4.25.jar \
+    -O ecj-4.25.jar || true && \
+    wget --timeout=30 --tries=3 \
+    https://archive.eclipse.org/eclipse/downloads/drops4/R-4.27-202303020300/ecj-4.27.jar \
+    -O ecj-4.27.jar || true && \
+    wget --timeout=30 --tries=3 \
+    https://archive.eclipse.org/eclipse/downloads/drops4/R-4.29-202309011800/ecj-4.29.jar \
+    -O ecj-4.29.jar || true && \
+    wget --timeout=30 --tries=3 \
+    https://archive.eclipse.org/eclipse/downloads/drops4/R-4.32-202406010610/ecj-4.32.jar \
+    -O ecj-4.32.jar || true
 
-# Create ECJ wrapper scripts
-RUN echo '#!/bin/bash\njava -jar /opt/ecj/ecj-3.20.0.jar "$@"' > /usr/local/bin/ecj8 && \
-    echo '#!/bin/bash\njava -jar /opt/ecj/ecj-3.26.0.jar "$@"' > /usr/local/bin/ecj11 && \
-    echo '#!/bin/bash\njava -jar /opt/ecj/ecj-3.30.0.jar "$@"' > /usr/local/bin/ecj17 && \
-    echo '#!/bin/bash\njava -jar /opt/ecj/ecj-3.38.0.jar "$@"' > /usr/local/bin/ecj21 && \
-    chmod +x /usr/local/bin/ecj8 /usr/local/bin/ecj11 /usr/local/bin/ecj17 /usr/local/bin/ecj21 && \
-    ln -s /usr/local/bin/ecj21 /usr/local/bin/ecj
+# Create wrapper scripts for downloaded ECJ versions
+RUN for jar in /opt/ecj/ecj-*.jar; do \
+        if [ -f "$jar" ]; then \
+            version=$(basename $jar .jar | sed 's/ecj-//'); \
+            echo "#!/bin/bash" > /usr/local/bin/ecj-${version}; \
+            echo "java -jar /opt/ecj/ecj-${version}.jar \"\$@\"" >> /usr/local/bin/ecj-${version}; \
+            chmod +x /usr/local/bin/ecj-${version}; \
+        fi \
+    done
+
+# Create convenience aliases for Java version compatibility
+RUN if [ -f /opt/ecj/ecj-4.9.jar ]; then ln -s /usr/local/bin/ecj-4.9 /usr/local/bin/ecj8; fi && \
+    if [ -f /opt/ecj/ecj-4.9.jar ]; then ln -s /usr/local/bin/ecj-4.9 /usr/local/bin/ecj11; fi && \
+    if [ -f /opt/ecj/ecj-4.21.jar ]; then ln -s /usr/local/bin/ecj-4.21 /usr/local/bin/ecj17; fi && \
+    if [ -f /opt/ecj/ecj-4.29.jar ]; then ln -s /usr/local/bin/ecj-4.29 /usr/local/bin/ecj21; fi && \
+    if [ -f /opt/ecj/ecj-4.32.jar ]; then ln -s /usr/local/bin/ecj-4.32 /usr/local/bin/ecj; fi
 
 # Set default Java to 21
 ENV JAVA_HOME=/opt/java/jdk21

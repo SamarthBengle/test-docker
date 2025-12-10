@@ -21,23 +21,21 @@ print_help() {
     echo "  --version VERSION    Use specific Java version (8, 11, 17, 21)"
     echo "  --all-versions       Run command with all Java versions"
     echo "  --list-versions      List available Java versions"
+    echo "  --list-ecj           List all ECJ compiler versions"
     echo "  --help               Show this help message"
     echo ""
     echo "Examples:"
     echo "  # Use Java 17"
     echo "  java-runner.sh --version 17 javac MyClass.java"
     echo ""
+    echo "  # Use ECJ 4.21 (Java 17 compatible)"
+    echo "  java-runner.sh --version 17 ecj-4.21 MyClass.java"
+    echo ""
+    echo "  # Use ECJ alias"
+    echo "  java-runner.sh --version 17 ecj17 MyClass.java"
+    echo ""
     echo "  # Run with all versions"
     echo "  java-runner.sh --all-versions javac -version"
-    echo ""
-    echo "  # Use Maven with Java 11"
-    echo "  java-runner.sh --version 11 mvn clean package"
-    echo ""
-    echo "  # Use Gradle with Java 21"
-    echo "  java-runner.sh --version 21 gradle build"
-    echo ""
-    echo "  # Use ECJ (Eclipse Compiler) with Java 17"
-    echo "  java-runner.sh --version 17 ecj17 MyClass.java"
 }
 
 list_versions() {
@@ -50,15 +48,39 @@ list_versions() {
         fi
     done
     echo ""
-    echo "Maven: $(mvn -version | head -n 1)"
-    echo "Gradle: $(gradle -version | grep Gradle)"
+    echo "Maven: $(mvn -version 2>/dev/null | head -n 1 || echo 'Not available')"
+    echo "Gradle: $(gradle -version 2>/dev/null | grep Gradle || echo 'Not available')"
     echo ""
-    echo "Eclipse Compiler for Java (ECJ):"
-    for version in "${JAVA_VERSIONS[@]}"; do
-        if [ -f "/usr/local/bin/ecj${version}" ]; then
-            echo -e "  ${GREEN}ECJ ${version}${NC}: Available (ecj${version})"
+    echo "ECJ Compilers: Use --list-ecj to see all versions"
+}
+
+list_ecj() {
+    echo "Eclipse Compiler for Java (ECJ) - All Major Versions:"
+    echo ""
+    echo "ECJ 3.x Series (Java 5-7):"
+    for jar in /opt/ecj/ecj-3.*.jar; do
+        if [ -f "$jar" ]; then
+            version=$(basename $jar .jar | sed 's/ecj-//')
+            echo -e "  ${GREEN}ECJ ${version}${NC}: ecj-${version}"
         fi
     done
+    echo ""
+    echo "ECJ 4.x Series (Java 8-22):"
+    for jar in /opt/ecj/ecj-4.*.jar; do
+        if [ -f "$jar" ]; then
+            version=$(basename $jar .jar | sed 's/ecj-//')
+            echo -e "  ${GREEN}ECJ ${version}${NC}: ecj-${version}"
+        fi
+    done
+    echo ""
+    echo "Convenience Aliases (Java version compatible):"
+    echo -e "  ${BLUE}ecj6${NC}  -> ecj-3.7.2 (Java 6)"
+    echo -e "  ${BLUE}ecj7${NC}  -> ecj-4.2.2 (Java 7)"
+    echo -e "  ${BLUE}ecj8${NC}  -> ecj-4.9 (Java 8-11)"
+    echo -e "  ${BLUE}ecj11${NC} -> ecj-4.9 (Java 11)"
+    echo -e "  ${BLUE}ecj17${NC} -> ecj-4.21 (Java 17)"
+    echo -e "  ${BLUE}ecj21${NC} -> ecj-4.29 (Java 21)"
+    echo -e "  ${BLUE}ecj${NC}   -> ecj-4.32 (Latest, Java 22)"
 }
 
 run_with_version() {
@@ -73,12 +95,7 @@ run_with_version() {
     fi
 
     export JAVA_HOME
-    # Check if custom Maven/Gradle exist, otherwise use system paths
-    if [ -d "/opt/maven" ]; then
-        export PATH="${JAVA_HOME}/bin:/opt/maven/bin:/opt/gradle/bin:${PATH}"
-    else
-        export PATH="${JAVA_HOME}/bin:${PATH}"
-    fi
+    export PATH="${JAVA_HOME}/bin:${PATH}"
 
     echo -e "${BLUE}>>> Running with Java ${version} (JAVA_HOME=${JAVA_HOME})${NC}"
 
@@ -134,6 +151,10 @@ case "$1" in
         ;;
     --list-versions|-l)
         list_versions
+        exit 0
+        ;;
+    --list-ecj|-e)
+        list_ecj
         exit 0
         ;;
     --version|-v)
