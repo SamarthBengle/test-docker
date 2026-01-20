@@ -5,7 +5,7 @@
 set -e
 
 # Available Java versions
-JAVA_VERSIONS=("8" "11" "17" "21")
+JAVA_VERSIONS=("8" "9" "10" "11" "12" "13" "14" "15" "16" "17" "18" "19" "20" "21")
 
 # Color output
 RED='\033[0;31m'
